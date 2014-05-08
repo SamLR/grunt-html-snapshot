@@ -75,6 +75,9 @@ _Run this task with the `grunt htmlSnapshot` command._
                   '',
                   '#!/en-gb/showcase'
                 ],
+                //Alternative to urls: fetch based on the contents of an
+                //xml sitemap.
+                sitemapUrl: 'http://localhost:8888/sitemap.xml',
                 // a list of cookies to be put into the phantomjs cookies jar for the visited page
                 cookies: [
                   {"path": "/", "domain": "localhost", "name": "lang", "value": "en-gb"}

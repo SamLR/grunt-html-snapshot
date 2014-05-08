@@ -11,8 +11,11 @@
 module.exports = function(grunt) {
 
     var fs          = require("fs"),
+        url         = require("url"),
         path        = require("path"),
-        phantom     = require("grunt-lib-phantomjs").init(grunt);
+        request     = require("request"),
+        phantom     = require("grunt-lib-phantomjs").init(grunt),
+        parseString = require("xml2js").parseString;
 
     var asset = path.join.bind(null, __dirname, '..');
 
@@ -27,20 +30,107 @@ module.exports = function(grunt) {
           },
           snapshotPath: '',
           sitePath: '',
+          sitemapUrl: '',
           removeScripts: false,
           removeLinkTags: false,
           removeMetaTags: false,
           replaceStrings: []
         });
 
+        var urls = [];
+
         // the channel prefix for this async grunt task
         var taskChannelPrefix = "" + new Date().getTime();
 
         var sanitizeFilename = options.sanitize;
 
+        var done = this.async();
+
         var isLastUrl = function(url){
-            return options.urls[options.urls.length - 1] === url;
+            return urls[urls.length - 1] === url;
         };
+
+        function getUrlsFromSitemap (_url, callback) {
+            var urlList = [],
+                unvisitedMaps = [];
+
+            request(_url, function (err, resp, body) {
+                if (err  || !body) {
+                    grunt.warn('error loading ' + _url + ': '+ err.message, 6);
+
+                }
+                parseString(body, function (err, res) {
+                    var toWalk;
+
+                    if ( err ) {
+                        grunt.warn('error parsing ' + _url + ': '+ err.message, 6);
+
+                    } else if ( res.sitemapindex ) {
+                        toWalk = res.sitemapindex.sitemap;
+
+                    } else if ( res.urlset ) {
+                        toWalk = res.urlset.url;
+
+                    } else {
+                        grunt.warn('error: ' + _url + ' is not a valid urlset or sitemapindex', 6);
+                    }
+
+                    grunt.util._.forEach(toWalk, function (item) {
+                        var loc = item.loc[0]; // should be a full url
+                        grunt.log.writeln(loc);
+                        if ( res.urlset ) {
+                            urlList.push( url.parse(loc).path );
+
+                        } else {
+                            unvisitedMaps.push(loc);
+
+                            getUrlsFromSitemap(item.loc[0], function (urls) {
+                                urlList.cat(urls);
+                                grunt.util._.pull(unvisitedMaps, loc);
+
+                                // Make the callback once all the sitemaps
+                                // have been visited
+                                if (callback && unvisitedMaps.length === 0) {
+                                    callback(urlList);
+                                }
+                            });
+                        }
+                    });
+
+                    // If we're in a urlset we're finished so callback with
+                    // the good news!
+                    if ( res.urlset ) {
+                        callback(urlList);
+                    }
+                });
+            });
+        }
+
+        function snapshotUrls (urls) {
+            grunt.util.async.forEachSeries(urls, function (urlToGet, next) {
+                phantom.spawn(options.sitePath + urlToGet, {
+                    // Additional PhantomJS options.
+                    options: {
+                        phantomScript: asset('phantomjs/bridge.js'),
+                        msWaitForPages: options.msWaitForPages,
+                        bodyAttr: options.bodyAttr,
+                        cookies: options.cookies,
+                        taskChannelPrefix: taskChannelPrefix
+                    },
+                    // Complete the task when done.
+                    done: function (err) {
+                        if (err) {
+                            // If there was an error, abort the series.
+                            done();
+                        }
+                        else {
+                            // Otherwise, process next url.
+                            next();
+                        }
+                    }
+                });
+            });
+        }
 
         phantom.on(taskChannelPrefix + ".error.onError", function (msg, trace) {
             phantom.halt();
@@ -52,7 +142,7 @@ module.exports = function(grunt) {
         });
 
         phantom.on(taskChannelPrefix + ".htmlSnapshot.pageReady", function (msg, url) {
-            var plainUrl = url.replace(sitePath, '');
+            var plainUrl = url.replace(options.sitePath, '');
 
             var fileName =  options.snapshotPath +
                             options.fileNamePrefix +
@@ -71,7 +161,7 @@ module.exports = function(grunt) {
                 msg = msg.replace(/<meta\s.*?(\/)?>/gi, '');
             }
 
-            options.replaceStrings.forEach(function(obj) {
+            options.replaceStrings.forEach(function (obj) {
                 var key = Object.keys(obj);
                 var value = obj[key];
                 var regex = new RegExp(key, 'g');
@@ -82,38 +172,20 @@ module.exports = function(grunt) {
             grunt.log.writeln(fileName, 'written');
             phantom.halt();
 
-            isLastUrl(plainUrl) && done();
+            if ( isLastUrl(plainUrl) ){
+                 done();
+            }
         });
 
-        var done = this.async();
-
-        var urls = options.urls;
-        var sitePath = options.sitePath;
-
-        grunt.util.async.forEachSeries(urls, function(url, next) {
-
-            phantom.spawn(sitePath + url, {
-                // Additional PhantomJS options.
-                options: {
-                    phantomScript: asset('phantomjs/bridge.js'),
-                    msWaitForPages: options.msWaitForPages,
-                    bodyAttr: options.bodyAttr,
-                    cookies: options.cookies,
-                    taskChannelPrefix: taskChannelPrefix
-                },
-                // Complete the task when done.
-                done: function (err) {
-                    if (err) {
-                        // If there was an error, abort the series.
-                        done();
-                    }
-                    else {
-                        // Otherwise, process next url.
-                        next();
-                    }
-                }
+        if (options.sitemapUrl) {
+            getUrlsFromSitemap(options.sitemapUrl, function (urlList) {
+                grunt.log.writeln('Finished scraping sitemap');
+                snapshotUrls(urlList);
             });
-        });
+        } else {
+            snapshotUrls(options.urls);
+        }
+       
         grunt.log.writeln('running html-snapshot task...hold your horses');
     });
 };

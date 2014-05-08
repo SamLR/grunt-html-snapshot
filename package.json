@@ -25,7 +25,9 @@
     "node": ">= 0.8.0"
   },
   "dependencies": {
-    "grunt-lib-phantomjs": "0.3.0"
+    "grunt-lib-phantomjs": "0.3.0",
+    "lodash": "^2.4.1",
+    "xml2js": "^0.4.2"
   },
   "keywords": [
     "SEO",
