@@ -10,7 +10,8 @@
 
 module.exports = function(grunt) {
 
-    var fs          = require("fs"),
+    var _           = require("lodash"),
+        fs          = require("fs"),
         url         = require("url"),
         path        = require("path"),
         request     = require("request"),
@@ -75,9 +76,8 @@ module.exports = function(grunt) {
                         grunt.warn('error: ' + _url + ' is not a valid urlset or sitemapindex', 6);
                     }
 
-                    grunt.util._.forEach(toWalk, function (item) {
+                    _.forEach(toWalk, function (item) {
                         var loc = item.loc[0]; // should be a full url
-                        grunt.log.writeln(loc);
                         if ( res.urlset ) {
                             urlList.push( url.parse(loc).path );
 
@@ -85,8 +85,8 @@ module.exports = function(grunt) {
                             unvisitedMaps.push(loc);
 
                             getUrlsFromSitemap(item.loc[0], function (urls) {
-                                urlList.cat(urls);
-                                grunt.util._.pull(unvisitedMaps, loc);
+                                urlList = urlList.concat(urls);
+                                _.pull(unvisitedMaps, loc);
 
                                 // Make the callback once all the sitemaps
                                 // have been visited
