@@ -35,7 +35,8 @@ module.exports = function(grunt) {
           removeScripts: false,
           removeLinkTags: false,
           removeMetaTags: false,
-          replaceStrings: []
+          replaceStrings: [],
+          rexclude: ''
         });
 
         var _urls = [];
@@ -107,7 +108,15 @@ module.exports = function(grunt) {
         }
 
         function snapshotUrls (urls) {
-            _urls = urls;
+            if (options.rexclude) {
+                var re = new RegExp(options.rexclude);
+                _urls = _.filter(urls, function (item) {
+                    return !re.test(item);
+                });
+            } else {
+                _urls = urls;
+            }
+
             grunt.util.async.forEachSeries(_urls, function (urlToGet, next) {
                 phantom.spawn(options.sitePath + urlToGet, {
                     // Additional PhantomJS options.

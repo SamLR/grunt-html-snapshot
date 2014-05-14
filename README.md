@@ -81,7 +81,9 @@ _Run this task with the `grunt htmlSnapshot` command._
                 // a list of cookies to be put into the phantomjs cookies jar for the visited page
                 cookies: [
                   {"path": "/", "domain": "localhost", "name": "lang", "value": "en-gb"}
-                ]
+                ],
+                // A string regexp used to exclude URLs.
+                rexclude: '/private/'
               }
             }
         }
