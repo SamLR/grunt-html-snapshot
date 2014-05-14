@@ -38,7 +38,7 @@ module.exports = function(grunt) {
           replaceStrings: []
         });
 
-        var urls = [];
+        var _urls = [];
 
         // the channel prefix for this async grunt task
         var taskChannelPrefix = "" + new Date().getTime();
@@ -48,7 +48,7 @@ module.exports = function(grunt) {
         var done = this.async();
 
         var isLastUrl = function(url){
-            return urls[urls.length - 1] === url;
+            return _urls[_urls.length - 1] === url;
         };
 
         function getUrlsFromSitemap (_url, callback) {
@@ -107,7 +107,8 @@ module.exports = function(grunt) {
         }
 
         function snapshotUrls (urls) {
-            grunt.util.async.forEachSeries(urls, function (urlToGet, next) {
+            _urls = urls;
+            grunt.util.async.forEachSeries(_urls, function (urlToGet, next) {
                 phantom.spawn(options.sitePath + urlToGet, {
                     // Additional PhantomJS options.
                     options: {
