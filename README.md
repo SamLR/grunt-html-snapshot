@@ -82,8 +82,12 @@ _Run this task with the `grunt htmlSnapshot` command._
                 cookies: [
                   {"path": "/", "domain": "localhost", "name": "lang", "value": "en-gb"}
                 ],
-                // A string regexp used to exclude URLs.
-                rexclude: '/private/'
+                // A string regexp used to exclude URLs. This tests the entire
+                // URL not just the path. This test is also used on any 
+                // sub-sitemap pages.
+                // e.g. The below will match http://private.bar.com/foo and
+                //      http://bar.com/private/.
+                rexclude: '/private'
               }
             }
         }

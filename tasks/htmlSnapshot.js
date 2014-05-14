@@ -54,12 +54,20 @@ module.exports = function(grunt) {
 
         function getUrlsFromSitemap (_url, callback) {
             var urlList = [],
-                unvisitedMaps = [];
+                unvisitedMaps = [],
+                shouldExclude = function(toTest) {
+                    // Returns true if the passed string matches the exclude regexp
+                    var re = new RegExp(options.rexclude);
+                    if (options.rexclude) {
+                        return re.test(toTest);
+                    } else {
+                        return false;
+                    }
+                };
 
             request(_url, function (err, resp, body) {
                 if (err  || !body) {
                     grunt.warn('error loading ' + _url + ': '+ err.message, 6);
-
                 }
                 parseString(body, function (err, res) {
                     var toWalk;
@@ -79,10 +87,10 @@ module.exports = function(grunt) {
 
                     _.forEach(toWalk, function (item) {
                         var loc = item.loc[0]; // should be a full url
-                        if ( res.urlset ) {
+                        if ( res.urlset && !shouldExclude(loc) ) {
                             urlList.push( url.parse(loc).path );
 
-                        } else {
+                        } else if ( !shouldExclude(loc) ) {
                             unvisitedMaps.push(loc);
 
                             getUrlsFromSitemap(item.loc[0], function (urls) {
@@ -108,15 +116,7 @@ module.exports = function(grunt) {
         }
 
         function snapshotUrls (urls) {
-            if (options.rexclude) {
-                var re = new RegExp(options.rexclude);
-                _urls = _.filter(urls, function (item) {
-                    return !re.test(item);
-                });
-            } else {
-                _urls = urls;
-            }
-
+            
             grunt.util.async.forEachSeries(_urls, function (urlToGet, next) {
                 phantom.spawn(options.sitePath + urlToGet, {
                     // Additional PhantomJS options.
