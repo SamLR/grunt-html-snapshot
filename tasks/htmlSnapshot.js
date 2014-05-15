@@ -116,7 +116,7 @@ module.exports = function(grunt) {
         }
 
         function snapshotUrls (urls) {
-            
+            _urls = urls;
             grunt.util.async.forEachSeries(_urls, function (urlToGet, next) {
                 phantom.spawn(options.sitePath + urlToGet, {
                     // Additional PhantomJS options.
